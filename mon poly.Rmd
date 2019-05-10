@@ -41,7 +41,7 @@ urls_do_2017 <- sapply(2014:2016, function(x) {
 ```{r}
 #Funkcje
 
-# Funkcja pozwalaj¹ca wczytywaæ gotowe tabele z konwetow poludniowych. Wprowadzamy adres (najlepiej w postaci zmiennej R, moznaby wrzucic go jako html). Funkcja automatycznie przekszta³ca tabele do data frame, jak i usuwa niepotrzebne rzeczy i rozdziela date. 
+# Funkcja pozwalaj?ca wczytywa? gotowe tabele z konwetow poludniowych. Wprowadzamy adres (najlepiej w postaci zmiennej R, moznaby wrzucic go jako html). Funkcja automatycznie przekszta?ca tabele do data frame, jak i usuwa niepotrzebne rzeczy i rozdziela date. 
 wczytaj_tabele_kon_pol <- function (adres) {
         
               read_html(adres) %>%
@@ -52,7 +52,7 @@ wczytaj_tabele_kon_pol <- function (adres) {
               separate(Data, c("Poczatek", "Koniec"), " - ") %>%
               mutate(Poczatek=as.Date(Poczatek, "%d.%m.%Y"),
                     Koniec = as.Date(Koniec, "%d.%m.%Y")) %>% 
-              filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo³any)"))
+              filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo?any)"))
           
 }
 
@@ -64,11 +64,7 @@ filtr_ma_inne <- function (rok) {
                                 }
 
 
-#% wzrost z roku na rok
 
-growth <- function(x) { 
-                       x/lag(x)-1
-                      }
 
 ```
 
@@ -138,7 +134,7 @@ kon_2k17 <- wczytaj_tabele_kon_pol(as.character(kon_pol_5[1]))
 manga_amino_mieszane_2017 <- filtr_ma_inne(kon_2k17)
 
 #  kon_2k17<- kon_2k17 %>%
-# filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo³any)"))
+# filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo?any)"))
 
 
 ```
@@ -173,7 +169,7 @@ manga_amino_mieszane_2014 <- filtr_ma_inne(kon_2k14)
 ```
 
 ```{r}
-#2013 - niepe³ne 
+#2013 - niepe?ne 
 
 kon_2k13 <- wczytaj_tabele_kon_pol(as.character(kon_pol_1[1]))
 
@@ -220,13 +216,21 @@ ggplot (data = konwenty_latami, aes(x = Rok, y = n, group = Kategoria)) +
         geom_text(aes(label=ifelse(n>=29,n,'')),hjust=0, vjust=0)
                    
   
-  
+ 
+ konwenty_wszystko <- konwenty_wszystko %>% 
+                      mutate (Czas_trwania = ifelse(is.na(Koniec),
+                                                     1,
+                                                     (Koniec - Poczatek+1)))
 
             
-  
+Kon_czas_trwania <-    konwenty_wszystko %>%
+                       count(Czas_trwania)
 
 
-
+Kon_czas_trwania_Miasto <-    konwenty_wszystko %>%
+                              group_by(Miasto) %>%
+                              filter(Kategoria == "Manga & Anime") %>%
+                              count(Czas_trwania)
   
 
 
@@ -288,7 +292,7 @@ kon_info_strona <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
 #               separate(Data, c("Poczatek", "Koniec"), " - ") %>%
 #               mutate(Poczatek=as.Date(Poczatek, "%d.%m.%Y"),
 #                     Koniec = as.Date(Koniec, "%d.%m.%Y")) %>% 
-#               filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo³any)"))
+#               filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo?any)"))
 
 
 ```
