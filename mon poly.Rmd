@@ -1,0 +1,295 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+
+library(rvest)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+library(openxlsx)
+
+
+url <- ("https://konwenty-poludniowe.pl/konwenty/kalendarz/archiwum-konwentow-")
+
+urls_od_2017 <- sapply(2013:2019, function(x) {
+  paste0(url, x) }) %>% 
+  as.list()
+  
+for (i in 1:length(urls_od_2017)) {
+  assign(paste("kon_pol_", i, sep = ""), urls_od_2017[i])    
+}
+
+ url_2 <- ("https://konwenty-poludniowe.pl/konwenty/kalendarz/archiwum-")
+
+urls_do_2017 <- sapply(2014:2016, function(x) {
+  paste0(url_2 , x) }) %>%
+  as.list()
+
+ for (i in 2:4) {
+   assign(paste("kon_pol_", i, sep = ""), urls_do_2017[i-1])    
+ }
+
+
+```
+
+```{r}
+#Funkcje
+
+# Funkcja pozwalaj¹ca wczytywaæ gotowe tabele z konwetow poludniowych. Wprowadzamy adres (najlepiej w postaci zmiennej R, moznaby wrzucic go jako html). Funkcja automatycznie przekszta³ca tabele do data frame, jak i usuwa niepotrzebne rzeczy i rozdziela date. 
+wczytaj_tabele_kon_pol <- function (adres) {
+        
+              read_html(adres) %>%
+              html_nodes("#kalendarz") %>%
+              html_table %>%
+              as.data.frame()%>%
+              select (-c(Nazwa.wydarzenia.konwentu.1)) %>%
+              separate(Data, c("Poczatek", "Koniec"), " - ") %>%
+              mutate(Poczatek=as.Date(Poczatek, "%d.%m.%Y"),
+                    Koniec = as.Date(Koniec, "%d.%m.%Y")) %>% 
+              filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo³any)"))
+          
+}
+
+
+#Funkcja filtrujaca przygotowana tabele (pobrana z konwentow poludniowych) pod katem kategorii - interesuje nas manga i anime i mieszane. Zmienna w funkcji jest nazwa wczytanej tabeli 
+filtr_ma_inne <- function (rok) {
+                                    filter (rok,
+                                    Kategoria == "Manga & Anime" | Kategoria == "Mieszane") 
+                                }
+
+
+#% wzrost z roku na rok
+
+growth <- function(x) { 
+                       x/lag(x)-1
+                      }
+
+```
+
+```{r}
+
+#2019 
+
+bylo_2k19 <- wczytaj_tabele_kon_pol(as.character(kon_pol_7[1]))
+  
+manga_amino_mieszane_2019_bylo <- filtr_ma_inne(bylo_2k19)
+                                          
+```
+
+```{r}
+#Bedzie_2019 
+
+aktualne_kony_url <- "https://konwenty-poludniowe.pl/konwenty/kalendarz"
+
+bedze_2k19 <- wczytaj_tabele_kon_pol(aktualne_kony_url)
+
+manga_amino_mieszane_2019_bedzie <- filtr_ma_inne(bedze_2k19)
+
+
+```
+
+```{r}
+#Suma roku 2019 
+
+kon_2k19 <- merge(x = bylo_2k19, y = bedze_2k19, all = TRUE) %>%
+                                  arrange(Poczatek) %>%
+                                  subset(Poczatek < "2020-01-01")
+
+manga_amino_mieszane_2019_suma <- filtr_ma_inne(kon_2k19) 
+
+manga_amino_mieszane_2019_miasta <- manga_amino_mieszane_2019_suma   %>%
+                                    group_by(Miasto) %>%
+                                    count(Miasto, sort = T)
+
+
+```
+
+
+```{r}
+
+#2018 
+
+kon_2k18 <- wczytaj_tabele_kon_pol(as.character(kon_pol_6[1])) 
+
+manga_amino_mieszane_2018 <- filtr_ma_inne(kon_2k18)
+                            
+
+manga_amino_mieszane_2018 %>%
+  group_by(Miasto) %>%
+  count(Miasto, sort = T)
+
+manga_amino_mieszane_2018 <- manga_amino_mieszane_2018[order(manga_amino_mieszane_2018$Miasto),]
+
+
+
+```
+
+```{r}
+#2017
+
+kon_2k17 <- wczytaj_tabele_kon_pol(as.character(kon_pol_5[1]))
+
+manga_amino_mieszane_2017 <- filtr_ma_inne(kon_2k17)
+
+#  kon_2k17<- kon_2k17 %>%
+# filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo³any)"))
+
+
+```
+
+```{r}
+#2016
+
+kon_2k16 <- wczytaj_tabele_kon_pol(as.character(kon_pol_4[1]))
+
+manga_amino_mieszane_2016<- filtr_ma_inne(kon_2k16)
+
+
+```
+
+```{r}
+#2015
+
+kon_2k15 <- wczytaj_tabele_kon_pol(as.character(kon_pol_3[1]))
+
+manga_amino_mieszane_2015<- filtr_ma_inne(kon_2k15)
+
+```
+
+```{r}
+#2014
+
+kon_2k14 <- wczytaj_tabele_kon_pol(as.character(kon_pol_2[1]))
+
+manga_amino_mieszane_2014 <- filtr_ma_inne(kon_2k14)
+
+
+```
+
+```{r}
+#2013 - niepe³ne 
+
+kon_2k13 <- wczytaj_tabele_kon_pol(as.character(kon_pol_1[1]))
+
+manga_amino_mieszane_2013 <- filtr_ma_inne(kon_2k13)
+
+```
+
+
+```{r}
+#Wszystkie 
+
+lista_konw <- list(kon_2k14,kon_2k15,kon_2k16, kon_2k17, kon_2k18, kon_2k19)
+
+konwenty_wszystko <- Reduce(function(x,y) merge(x = x, y = y, all = TRUE), lista_konw)
+
+manga_amino_mieszane_wszycho <- filtr_ma_inne(konwenty_wszystko)
+
+
+tab_miast_count <- manga_amino_mieszane_wszycho %>%
+  group_by(Miasto) %>%
+  count(Miasto, sort = T)
+
+tab_miast_count_2_plus <- manga_amino_mieszane_wszycho %>%
+  na.omit() %>%
+  group_by(Miasto) %>%
+  count(Miasto, sort = T) 
+  
+
+typy_konwentow <- konwenty_wszystko %>%
+  group_by(Kategoria) %>%
+  count(Kategoria,sort = T)
+
+
+konwenty_latami <- konwenty_wszystko %>%
+                   mutate(Rok = year(Poczatek)) %>%
+                   group_by(Rok) %>%
+                   count(Kategoria, sort = T) %>%
+                   arrange (Kategoria, Rok)
+
+
+ggplot (data = konwenty_latami, aes(x = Rok, y = n, group = Kategoria)) + 
+        geom_line(aes(color=Kategoria)) + 
+        geom_point() +
+        geom_text(aes(label=ifelse(n>=29,n,'')),hjust=0, vjust=0)
+                   
+  
+  
+
+            
+  
+
+
+
+  
+
+
+
+```
+
+```{r}
+# zapisanie tabelek 
+
+
+write.xlsx(konwenty_latami, file = "konwenty_latami.xlsx", colNames = T)
+write.xlsx(typy_konwentow, file = "typy_konwentow.xlsx", colNames = T)
+write.xlsx(tab_miast_count_2_plus, file = "tab_miast_count_2_plus.xlsx", colNames = T)
+write.xlsx(tab_miast_count, file = "tab_miast_count.xlsx", colNames = T)
+write.xlsx(manga_amino_mieszane_wszycho, file = "manga_amino_mieszane_wszycho.xlsx", colNames = T)
+write.xlsx(konwenty_wszystko, file = "konwenty_wszystko.xlsx", colNames = T)
+
+
+
+```
+
+```{r}
+
+kon_info_nazwa <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
+              html_nodes(".tabik_nazwa") %>%
+              html_text() 
+
+kon_info_miejscowosc <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
+              html_nodes(".tabik_miejscowosc") %>%
+              html_text()
+
+a_test <- data.frame(kon_info_nazwa, kon_info_miejscowosc) 
+
+kon_info_data <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
+              html_nodes(".tabik_data") %>%
+              html_text()
+
+kon_info_dni <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
+              html_nodes(".tabik_dni") %>%
+              html_text()
+
+kon_info_rodzaj <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
+              html_nodes(".tabik_rodzaj") %>%
+              html_text()
+
+kon_info_cena <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
+              html_nodes(".tabik_cena") %>%
+              html_text()
+
+kon_info_strona <- read_html("https://konwenty.info/konwenty/?rok=2019") %>%
+              html_nodes(".tabik_strona a") %>%
+              html_attr('href')
+
+
+
+
+# %>%
+#               select (-c(Nazwa.wydarzenia.konwentu.1)) %>%
+#               separate(Data, c("Poczatek", "Koniec"), " - ") %>%
+#               mutate(Poczatek=as.Date(Poczatek, "%d.%m.%Y"),
+#                     Koniec = as.Date(Koniec, "%d.%m.%Y")) %>% 
+#               filter(!str_detect(Nazwa.wydarzenia.konwentu, "(odwo³any)"))
+
+
+```
+
